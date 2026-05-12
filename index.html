@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="積ん読管理">
+<title>📚 積ん読管理</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  background: #F7F5F0;
+  color: #1a1a1a;
+  min-height: 100dvh;
+  padding-bottom: 3rem;
+}
+header {
+  background: white;
+  border-bottom: 0.5px solid #e0ddd6;
+  padding: 1rem 1.25rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+header h1 { font-size: 20px; font-weight: 600; }
+header p { font-size: 12px; color: #888; margin-top: 2px; }
+.main-tabs { display: flex; gap: 0; border-top: 0.5px solid #eee; margin-top: 0.5rem; }
+.main-tab {
+  flex: 1; padding: 10px 0; font-size: 13px; font-weight: 500;
+  text-align: center; cursor: pointer; border: none; background: none;
+  color: #999; border-bottom: 2px solid transparent;
+}
+.main-tab.active { color: #1D9E75; border-bottom-color: #1D9E75; }
+
+.app { max-width: 600px; margin: 0 auto; padding: 1rem; }
+.page { display: none; }
+.page.active { display: block; }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1.25rem; }
+.stat { background: white; border-radius: 12px; padding: 12px; text-align: center; border: 0.5px solid #e8e5de; }
+.stat-num { font-size: 24px; font-weight: 600; }
+.stat-label { font-size: 11px; color: #888; margin-top: 2px; }
+.stat-tsundoku .stat-num { color: #993C1D; }
+.stat-reading .stat-num { color: #185FA5; }
+.stat-done .stat-num { color: #0F6E56; }
+
+.add-btn {
+  width: 100%; padding: 12px; background: #E1F5EE; color: #085041;
+  border: 0.5px solid #5DCAA5; border-radius: 12px; font-size: 15px; font-weight: 600;
+  cursor: pointer; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.add-btn:active { opacity: 0.75; }
+
+.filter-bar {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.filter-bar::-webkit-scrollbar { display: none; }
+.filter-chip {
+  padding: 6px 14px; font-size: 13px; border-radius: 999px;
+  border: 0.5px solid #ccc; background: white; cursor: pointer; color: #666;
+  white-space: nowrap; flex-shrink: 0;
+}
+.filter-chip.active { background: #1a1a1a; color: white; border-color: #1a1a1a; font-weight: 500; }
+
+.book-list { display: flex; flex-direction: column; gap: 10px; }
+.book-card { background: white; border: 0.5px solid #e0ddd6; border-radius: 14px; padding: 14px; }
+.book-top { display: flex; gap: 12px; align-items: flex-start; }
+.book-icon { width: 42px; height: 56px; border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.book-main { flex: 1; min-width: 0; }
+.book-title { font-size: 15px; font-weight: 600; color: #1a1a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.book-author { font-size: 12px; color: #888; margin-top: 2px; }
+.book-meta { display: flex; align-items: center; gap: 7px; margin-top: 7px; flex-wrap: wrap; }
+.status-badge { font-size: 11px; padding: 3px 9px; border-radius: 999px; font-weight: 600; }
+.badge-tsundoku { background: #FAECE7; color: #993C1D; }
+.badge-reading { background: #E6F1FB; color: #185FA5; }
+.badge-done { background: #E1F5EE; color: #085041; }
+.book-stars { font-size: 13px; color: #EF9F27; letter-spacing: 1px; }
+.book-date { font-size: 11px; color: #aaa; }
+.book-note { font-size: 13px; color: #555; margin-top: 8px; border-top: 0.5px solid #eee; padding-top: 8px; line-height: 1.6; }
+.book-actions { display: flex; gap: 6px; margin-top: 10px; }
+.btn-action { font-size: 12px; padding: 5px 12px; border-radius: 8px; border: 0.5px solid #ddd; background: #f8f8f8; cursor: pointer; color: #555; }
+.btn-action.edit { color: #185FA5; border-color: #85B7EB; background: #F0F6FD; }
+.btn-action.del { color: #993C1D; border-color: #F0997B; background: #FDF4F1; }
+.empty { text-align: center; padding: 3rem 1rem; color: #aaa; font-size: 14px; line-height: 2; }
+
+/* グラフ */
+.graph-section { margin-bottom: 1.5rem; }
+.graph-title { font-size: 15px; font-weight: 600; margin-bottom: 0.75rem; color: #1a1a1a; }
+.graph-card { background: white; border-radius: 14px; border: 0.5px solid #e0ddd6; padding: 1rem; }
+.year-tabs { display: flex; gap: 6px; margin-bottom: 1rem; flex-wrap: wrap; }
+.year-tab { padding: 5px 14px; font-size: 13px; border-radius: 999px; border: 0.5px solid #ccc; background: white; cursor: pointer; color: #666; }
+.year-tab.active { background: #1D9E75; color: white; border-color: #1D9E75; font-weight: 500; }
+.bar-chart { display: flex; flex-direction: column; gap: 6px; }
+.bar-row { display: flex; align-items: center; gap: 8px; }
+.bar-label { font-size: 12px; color: #666; width: 32px; text-align: right; flex-shrink: 0; }
+.bar-track { flex: 1; background: #f0ede8; border-radius: 4px; height: 22px; position: relative; overflow: visible; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; position: relative; }
+.bar-num-in { font-size: 11px; color: white; font-weight: 600; }
+.bar-num-out { font-size: 11px; color: #999; position: absolute; left: calc(100% + 5px); top: 50%; transform: translateY(-50%); white-space: nowrap; }
+.no-data { text-align: center; padding: 2rem; color: #aaa; font-size: 13px; }
+.yearly-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 1rem; }
+.yearly-stat { background: #F7F5F0; border-radius: 10px; padding: 10px 12px; text-align: center; }
+.yearly-stat-num { font-size: 20px; font-weight: 600; color: #1D9E75; }
+.yearly-stat-label { font-size: 11px; color: #888; margin-top: 2px; }
+
+/* Modal */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: flex-end; justify-content: center; }
+.overlay.open { display: flex; }
+.modal { background: white; border-radius: 20px 20px 0 0; padding: 1.5rem; width: 100%; max-width: 600px; max-height: 92dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.modal-handle { width: 40px; height: 4px; background: #ddd; border-radius: 2px; margin: 0 auto 1.25rem; }
+.modal h2 { font-size: 17px; font-weight: 600; margin-bottom: 1.25rem; }
+.form-section-label { font-size: 11px; color: #1D9E75; font-weight: 600; letter-spacing: 0.05em; margin: 16px 0 10px; padding-bottom: 4px; border-bottom: 0.5px solid #e0ddd6; }
+.form-row { margin-bottom: 12px; }
+.form-label { font-size: 12px; color: #666; margin-bottom: 5px; display: block; font-weight: 500; }
+.form-row input, .form-row select, .form-row textarea {
+  width: 100%; font-size: 15px; padding: 10px 12px;
+  border: 0.5px solid #ccc; border-radius: 10px;
+  background: white; color: #1a1a1a; -webkit-appearance: none; appearance: none;
+}
+.form-row textarea { resize: vertical; min-height: 70px; font-family: inherit; }
+.form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline: none; border-color: #1D9E75; box-shadow: 0 0 0 3px rgba(29,158,117,0.12); }
+.stars-input { display: flex; gap: 8px; margin-top: 4px; }
+.star-btn { font-size: 26px; cursor: pointer; background: none; border: none; line-height: 1; opacity: 0.25; padding: 2px; }
+.star-btn.on { opacity: 1; }
+.form-actions { display: flex; gap: 8px; margin-top: 14px; }
+.btn-save { flex: 1; padding: 12px; background: #1D9E75; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+.btn-save:active { background: #0F6E56; }
+.btn-cancel { padding: 12px 16px; background: none; border: 0.5px solid #ccc; border-radius: 10px; font-size: 15px; cursor: pointer; color: #666; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📚 積ん読管理</h1>
+  <p>本との出会いをぜんぶ記録しよう</p>
+  <div class="main-tabs">
+    <button class="main-tab active" onclick="showPage('list',this)">本の一覧</button>
+    <button class="main-tab" onclick="showPage('graph',this)">グラフ</button>
+  </div>
+</header>
+
+<div class="app">
+  <div class="page active" id="page-list">
+    <div style="height:0.75rem"></div>
+    <div class="stats" id="stats"></div>
+    <button class="add-btn" onclick="openModal()"><span style="font-size:18px">＋</span> 本を追加する</button>
+    <div class="filter-bar">
+      <button class="filter-chip active" onclick="setFilter('all',this)">すべて</button>
+      <button class="filter-chip" onclick="setFilter('tsundoku',this)">積ん読</button>
+      <button class="filter-chip" onclick="setFilter('reading',this)">読書中</button>
+      <button class="filter-chip" onclick="setFilter('done',this)">読了</button>
+    </div>
+    <div class="book-list" id="bookList"></div>
+  </div>
+
+  <div class="page" id="page-graph">
+    <div style="height:0.75rem"></div>
+    <div class="graph-section">
+      <div class="graph-title">月別 読了冊数</div>
+      <div class="graph-card">
+        <div class="year-tabs" id="yearTabs"></div>
+        <div class="bar-chart" id="monthlyChart"></div>
+        <div class="yearly-summary" id="yearlySummary"></div>
+      </div>
+    </div>
+    <div class="graph-section">
+      <div class="graph-title">年別 読了冊数</div>
+      <div class="graph-card">
+        <div class="bar-chart" id="yearlyChart"></div>
+      </div>
+    </div>
+    <div class="graph-section">
+      <div class="graph-title">年別 購入冊数</div>
+      <div class="graph-card">
+        <div class="bar-chart" id="buyChart"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="overlayClose(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="modalTitle">本を追加</h2>
+    <div class="form-section-label">基本情報</div>
+    <div class="form-row"><label class="form-label">タイトル *</label><input type="text" id="f-title" placeholder="本のタイトル"></div>
+    <div class="form-row"><label class="form-label">著者</label><input type="text" id="f-author" placeholder="著者名"></div>
+    <div class="form-row"><label class="form-label">購入日</label><input type="date" id="f-buy-date"></div>
+    <div class="form-section-label">読書状況</div>
+    <div class="form-row"><label class="form-label">ステータス</label>
+      <select id="f-status" onchange="onStatusChange()">
+        <option value="tsundoku">積ん読（未読）</option>
+        <option value="reading">読書中</option>
+        <option value="done">読了</option>
+      </select>
+    </div>
+    <div class="form-row" id="dateRow" style="display:none"><label class="form-label">読了日</label><input type="date" id="f-date"></div>
+    <div class="form-section-label">感想・評価</div>
+    <div class="form-row"><label class="form-label">評価</label>
+      <div class="stars-input">
+        <button class="star-btn" onclick="setStar(1)">★</button>
+        <button class="star-btn" onclick="setStar(2)">★</button>
+        <button class="star-btn" onclick="setStar(3)">★</button>
+        <button class="star-btn" onclick="setStar(4)">★</button>
+        <button class="star-btn" onclick="setStar(5)">★</button>
+      </div>
+    </div>
+    <div class="form-row"><label class="form-label">感想・メモ</label><textarea id="f-note" placeholder="感想、気になった言葉など…"></textarea></div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
+      <button class="btn-save" onclick="saveBook()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var books = JSON.parse(localStorage.getItem('tsundoku_v1') || '[]');
+var editId = null, starVal = 0, currentFilter = 'all', selectedYear = null;
+var MONTHS = ['1','2','3','4','5','6','7','8','9','10','11','12'];
+
+function save() { localStorage.setItem('tsundoku_v1', JSON.stringify(books)); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('page-'+name).classList.add('active');
+  document.querySelectorAll('.main-tab').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active');
+  if (name==='graph') renderGraph();
+}
+
+function renderStats() {
+  var t=books.filter(function(b){return b.status==='tsundoku';}).length;
+  var r=books.filter(function(b){return b.status==='reading';}).length;
+  var d=books.filter(function(b){return b.status==='done';}).length;
+  document.getElementById('stats').innerHTML=
+    '<div class="stat stat-tsundoku"><div class="stat-num">'+t+'</div><div class="stat-label">積ん読</div></div>'+
+    '<div class="stat stat-reading"><div class="stat-num">'+r+'</div><div class="stat-label">読書中</div></div>'+
+    '<div class="stat stat-done"><div class="stat-num">'+d+'</div><div class="stat-label">読了</div></div>';
+}
+
+function statusLabel(s){return s==='tsundoku'?'積ん読':s==='reading'?'読書中':'読了';}
+function statusClass(s){return s==='tsundoku'?'badge-tsundoku':s==='reading'?'badge-reading':'badge-done';}
+function bookBg(s){return s==='reading'?'#E6F1FB':s==='done'?'#E1F5EE':'#FAECE7';}
+function starsStr(n){return n?'★'.repeat(n)+'☆'.repeat(5-n):'';}
+
+function renderBooks() {
+  var list=currentFilter==='all'?books:books.filter(function(b){return b.status===currentFilter;});
+  var el=document.getElementById('bookList');
+  if(!list.length){el.innerHTML='<div class="empty">📖<br>まだ本がありません<br>追加してみましょう！</div>';return;}
+  el.innerHTML=list.map(function(b){
+    var dates=[];
+    if(b.buyDate) dates.push('購入 '+b.buyDate);
+    if(b.date) dates.push('読了 '+b.date);
+    return '<div class="book-card">'+
+      '<div class="book-top">'+
+        '<div class="book-icon" style="background:'+bookBg(b.status)+'">📖</div>'+
+        '<div class="book-main">'+
+          '<div class="book-title">'+esc(b.title)+'</div>'+
+          (b.author?'<div class="book-author">'+esc(b.author)+'</div>':'')+
+          '<div class="book-meta">'+
+            '<span class="status-badge '+statusClass(b.status)+'">'+statusLabel(b.status)+'</span>'+
+            (b.stars?'<span class="book-stars">'+starsStr(b.stars)+'</span>':'')+
+            dates.map(function(d){return '<span class="book-date">'+esc(d)+'</span>';}).join('')+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+      (b.note?'<div class="book-note">'+esc(b.note)+'</div>':'')+
+      '<div class="book-actions">'+
+        '<button class="btn-action edit" onclick="editBook(\''+b.id+'\')">編集</button>'+
+        '<button class="btn-action del" onclick="deleteBook(\''+b.id+'\')">削除</button>'+
+      '</div></div>';
+  }).join('');
+}
+
+function getYearsFrom(field) {
+  var y={};
+  books.forEach(function(b){if(b[field])y[b[field].slice(0,4)]=true;});
+  return Object.keys(y).sort();
+}
+
+function renderBarChart(elId, data, color) {
+  var el=document.getElementById(elId);
+  if(!data.length||data.every(function(d){return d.val===0;})){el.innerHTML='<div class="no-data">データがありません</div>';return;}
+  var max=Math.max.apply(null,data.map(function(d){return d.val;}))||1;
+  el.innerHTML=data.map(function(d){
+    var pct=Math.round(d.val/max*100);
+    var inside=pct>20&&d.val>0;
+    return '<div class="bar-row">'+
+      '<span class="bar-label">'+esc(d.label)+'</span>'+
+      '<div class="bar-track">'+
+        '<div class="bar-fill" style="width:'+pct+'%;background:'+(color||'#1D9E75')+'">'+
+          (inside?'<span class="bar-num-in">'+d.val+'</span>':'<span class="bar-num-out">'+(d.val||'')+'</span>')+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function renderGraph() {
+  var doneYears=getYearsFrom('date');
+  var nowYear=String(new Date().getFullYear());
+  if(!doneYears.length) doneYears=[nowYear];
+  if(!selectedYear||doneYears.indexOf(selectedYear)===-1) selectedYear=doneYears[doneYears.length-1];
+
+  document.getElementById('yearTabs').innerHTML=doneYears.map(function(y){
+    return '<button class="year-tab'+(y===selectedYear?' active':'')+'" onclick="selectYear(\''+y+'\',this)">'+y+'年</button>';
+  }).join('');
+
+  var monthly=MONTHS.map(function(m,i){
+    var mon=String(i+1).padStart(2,'0');
+    var count=books.filter(function(b){return b.status==='done'&&b.date&&b.date.slice(0,4)===selectedYear&&b.date.slice(5,7)===mon;}).length;
+    return {label:m+'月',val:count};
+  });
+  renderBarChart('monthlyChart',monthly,'#1D9E75');
+
+  var total=monthly.reduce(function(s,d){return s+d.val;},0);
+  var maxV=Math.max.apply(null,monthly.map(function(d){return d.val;}));
+  var best=maxV>0?(monthly.findIndex(function(d){return d.val===maxV;})+1)+'月':'-';
+  document.getElementById('yearlySummary').innerHTML=
+    '<div class="yearly-stat"><div class="yearly-stat-num">'+total+'</div><div class="yearly-stat-label">'+selectedYear+'年 読了冊数</div></div>'+
+    '<div class="yearly-stat"><div class="yearly-stat-num">'+best+'</div><div class="yearly-stat-label">最も読んだ月</div></div>';
+
+  var allDY=getYearsFrom('date');
+  renderBarChart('yearlyChart',allDY.length?allDY.map(function(y){
+    return {label:y,val:books.filter(function(b){return b.status==='done'&&b.date&&b.date.slice(0,4)===y;}).length};
+  }):[],'#0F6E56');
+
+  var buyY=getYearsFrom('buyDate');
+  renderBarChart('buyChart',buyY.length?buyY.map(function(y){
+    return {label:y,val:books.filter(function(b){return b.buyDate&&b.buyDate.slice(0,4)===y;}).length};
+  }):[],'#BA7517');
+}
+
+function selectYear(y,el){
+  selectedYear=y;
+  document.querySelectorAll('.year-tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  renderGraph();
+}
+
+function openModal(){
+  editId=null;starVal=0;updateStars();
+  ['f-title','f-author','f-note'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('f-buy-date').value='';
+  document.getElementById('f-status').value='tsundoku';
+  document.getElementById('f-date').value='';
+  document.getElementById('dateRow').style.display='none';
+  document.getElementById('modalTitle').textContent='本を追加';
+  document.getElementById('overlay').classList.add('open');
+}
+function closeModal(){document.getElementById('overlay').classList.remove('open');editId=null;}
+function overlayClose(e){if(e.target===document.getElementById('overlay'))closeModal();}
+function onStatusChange(){document.getElementById('dateRow').style.display=document.getElementById('f-status').value==='done'?'block':'none';}
+function setStar(v){starVal=(starVal===v)?0:v;updateStars();}
+function updateStars(){document.querySelectorAll('.star-btn').forEach(function(b,i){b.classList.toggle('on',i<starVal);});}
+
+function saveBook(){
+  var title=document.getElementById('f-title').value.trim();
+  if(!title){alert('タイトルを入力してください');return;}
+  var status=document.getElementById('f-status').value;
+  var book={
+    id:editId||Date.now().toString(),
+    title:title,
+    author:document.getElementById('f-author').value.trim(),
+    buyDate:document.getElementById('f-buy-date').value,
+    status:status,
+    date:status==='done'?document.getElementById('f-date').value:'',
+    stars:starVal,
+    note:document.getElementById('f-note').value.trim(),
+    created:editId?((books.find(function(b){return b.id===editId;})||{}).created||Date.now()):Date.now()
+  };
+  if(editId){books=books.map(function(b){return b.id===editId?book:b;});}
+  else{books.unshift(book);}
+  save();closeModal();render();
+}
+
+function editBook(id){
+  var b=books.find(function(x){return x.id===id;});
+  if(!b)return;
+  editId=id;starVal=b.stars||0;updateStars();
+  document.getElementById('f-title').value=b.title;
+  document.getElementById('f-author').value=b.author||'';
+  document.getElementById('f-buy-date').value=b.buyDate||'';
+  document.getElementById('f-status').value=b.status;
+  document.getElementById('f-date').value=b.date||'';
+  document.getElementById('dateRow').style.display=b.status==='done'?'block':'none';
+  document.getElementById('f-note').value=b.note||'';
+  document.getElementById('modalTitle').textContent='本を編集';
+  document.getElementById('overlay').classList.add('open');
+}
+
+function deleteBook(id){
+  if(!confirm('この本を削除しますか？'))return;
+  books=books.filter(function(b){return b.id!==id;});
+  save();render();
+}
+
+function setFilter(f,el){
+  currentFilter=f;
+  document.querySelectorAll('.filter-chip').forEach(function(c){c.classList.remove('active');});
+  el.classList.add('active');
+  renderBooks();
+}
+
+function render(){renderStats();renderBooks();}
+render();
+</script>
+</body>
+</html>
